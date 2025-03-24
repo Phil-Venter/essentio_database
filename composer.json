@@ -1,0 +1,12 @@
+{
+    "name": "essentio/database",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Essentio\\Database\\": "src/"
+        }
+    },
+    "minimum-stability": "dev",
+    "require": {}
+}
