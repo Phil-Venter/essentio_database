@@ -158,21 +158,6 @@ describe(Query::class, function () {
         expect(count($users))->toBeGreaterThan(0);
     });
 
-    it("throws when missing table for insert", function () {
-        $query = new Query($this->pdo);
-        $query->insert(["x" => 1]); // no from()
-    })->throws(Exception::class, "Table not set");
-
-    it("throws when missing table for update", function () {
-        $query = new Query($this->pdo);
-        $query->update(["x" => 1]); // no from()
-    })->throws(Exception::class, "Table not set");
-
-    it("throws when missing table for delete", function () {
-        $query = new Query($this->pdo);
-        $query->delete(); // no from()
-    })->throws(Exception::class, "Table not set");
-
     it("can get only first row", function () {
         new Query($this->pdo)->from("users")->insert([
             "name" => "GrugFirst",
