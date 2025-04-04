@@ -39,7 +39,7 @@ Set the FROM clause, or provide a subquery via closure.
 $query->from('users');
 
 // Subquery example:
-$query->from(fn($q) => $q->select('id')->from('users'), 'u');
+$query->from(fn($q) => $q->select('id')->from('users')); // defaults to AS t
 ```
 
 ---
