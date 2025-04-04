@@ -249,15 +249,17 @@ class Query
     /**
      * Executes a SELECT query and returns all rows.
      *
-     * @return array An array of associative rows.
+     * @return iterable
      */
-    public function get(): array
+    public function get(): iterable
     {
-        $stmt = $this->smartBind($this->pdo->prepare($this->compileSelect()), $this->getBindings());
-        $stmt->execute();
-        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $sql = $this->compileSelect();
 
-        return $result;
+        $stmt = $this->pdo->prepare($sql);
+        $this->bindValues($stmt, $this->getBindings());
+        $stmt->execute();
+
+        return $stmt->getIterator();
     }
 
     /**
@@ -270,11 +272,9 @@ class Query
      */
     public function morph(callable $fn, bool $spread = false): iterable
     {
-        $stmt = $this->pdo->prepare($this->compileSelect());
-        $stmt = $this->smartBind($stmt, $this->getBindings());
-        $stmt->execute();
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            yield $spread ? $fn(...$row) : $fn($row);
+        foreach ($this->get() as $row) {
+            $params = iterator_to_array($row);
+            yield $spread ? $fn(...$params) : $fn($params);
         }
     }
 
@@ -283,32 +283,11 @@ class Query
      *
      * @return array|null Single result row or null.
      */
-    public function first(): ?array
+    public function first(): array
     {
         $this->limit = 1;
-        return $this->get()[0] ?? null;
-    }
-
-    /**
-     * Executes the query, returns the first row after applying a transformation.
-     *
-     * @param callable $fn Function to transform the row.
-     *                     If $spread is true, keys are spread as arguments.
-     *                     If false, the row is passed as an array.
-     * @param bool $spread Whether to spread row keys into arguments.
-     * @return mixed|null Transformed result or null if no row.
-     */
-    public function morphFirst(callable $fn, bool $spread = false): mixed
-    {
-        $this->limit = 1;
-        $stmt = $this->pdo->prepare($this->compileSelect());
-        $stmt = $this->smartBind($stmt, $this->getBindings());
-        $stmt->execute();
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (empty($row)) {
-            return null;
-        }
-        return $spread ? $fn(...$row) : $fn($row);
+        $rows = iterator_to_array($this->get());
+        return $rows[0] ?? [];
     }
 
     /**
@@ -327,8 +306,10 @@ class Query
         $placeholders = implode(", ", array_fill(0, count($data), "?"));
         $sql = sprintf("INSERT INTO %s (%s) VALUES (%s)", $this->from, $columns, $placeholders);
 
-        $stmt = $this->smartBind($this->pdo->prepare($sql), $data);
+        $stmt = $this->pdo->prepare($sql);
+        $this->bindValues($stmt, $data);
         $stmt->execute();
+
         return $this->pdo->lastInsertId() ? (int) $this->pdo->lastInsertId() : null;
     }
 
@@ -345,11 +326,11 @@ class Query
         assert(!empty($this->from));
 
         $setParts = [];
-        $updateBindings = [];
+        $bindings = [];
 
         foreach ($data as $column => $value) {
             $setParts[] = "$column = ?";
-            $updateBindings[] = $value;
+            $bindings[] = $value;
         }
 
         $sql = sprintf("UPDATE %s SET %s", $this->from, implode(", ", $setParts));
@@ -357,8 +338,12 @@ class Query
             $sql .= sprintf(" WHERE %s", $where);
         }
 
-        $stmt = $this->smartBind($this->pdo->prepare($sql), array_merge($updateBindings, $this->getBindings()));
+        $bindings = array_merge($bindings, $this->getBindings());
+
+        $stmt = $this->pdo->prepare($sql);
+        $this->bindValues($stmt, $bindings);
         $stmt->execute();
+
         return $stmt->rowCount();
     }
 
@@ -377,8 +362,10 @@ class Query
             $sql .= sprintf(" WHERE %s", $where);
         }
 
-        $stmt = $this->smartBind($this->pdo->prepare($sql), $this->getBindings());
+        $stmt = $this->pdo->prepare($sql);
+        $this->bindValues($stmt, $this->getBindings());
         $stmt->execute();
+
         return $stmt->rowCount();
     }
 
@@ -555,24 +542,18 @@ class Query
      * @param array $bindings Values to bind.
      * @return PDOStatement Bound statement.
      */
-    protected function smartBind(PDOStatement $stmt, array $bindings): PDOStatement
+    protected function bindValues(PDOStatement $stmt, array $bindings): void
     {
-        $values = array_values($bindings);
+        foreach (array_values($bindings) as $index => $value) {
+            $type = match (true) {
+                is_int($value) => PDO::PARAM_INT,
+                is_bool($value) => PDO::PARAM_BOOL,
+                is_null($value) => PDO::PARAM_NULL,
+                default => PDO::PARAM_STR,
+            };
 
-        foreach ($values as $index => &$value) {
-            $stmt->bindParam(
-                $index + 1,
-                $value,
-                match (true) {
-                    is_int($value) => PDO::PARAM_INT,
-                    is_bool($value) => PDO::PARAM_BOOL,
-                    is_null($value) => PDO::PARAM_NULL,
-                    default => PDO::PARAM_STR,
-                }
-            );
+            $stmt->bindValue($index + 1, $value, $type);
         }
-
-        return $stmt;
     }
 
     /**

@@ -200,16 +200,6 @@ $query->morph(fn($name, $email) => "$name <$email>", true);
 
 ---
 
-### `morphFirst(callable $fn, bool $spread = false): mixed`
-
-Same as `morph()`, but just the first result.
-
-```php
-$user = $query->select('name')->from('users')->morphFirst(fn($row) => strtoupper($row['name']));
-```
-
----
-
 ### `insert(array $data): ?int`
 
 Insert a row and return the last insert ID (if available).

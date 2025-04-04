@@ -70,7 +70,7 @@ describe(Query::class, function () {
         expect($deleted)->toBe(1);
 
         $user = new Query($this->pdo)->from("users")->where("id", $id)->first();
-        expect($user)->toBeNull();
+        expect($user)->toBeEmpty();
     });
 
     it("can build query with joins and group by", function () {
@@ -134,7 +134,7 @@ describe(Query::class, function () {
             });
 
         $result = $main->get();
-        expect(count($result))->toBe(2);
+        expect(iterator_count($result))->toBe(2);
     });
 
     it("returns correct bindings for where and having", function () {
@@ -155,7 +155,7 @@ describe(Query::class, function () {
             ->where("status", "IN", ["alive", "asleep"])
             ->get();
 
-        expect(count($users))->toBeGreaterThan(0);
+        expect(iterator_count($users))->toBeGreaterThan(0);
     });
 
     it("can get only first row", function () {
