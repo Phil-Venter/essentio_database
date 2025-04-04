@@ -27,6 +27,14 @@ class Query
     public function __construct(protected PDO $pdo) {}
 
     /**
+     * @return PDO
+     */
+    public function getPDO(): PDO
+    {
+        return $this->pdo;
+    }
+
+    /**
      * Specifies columns to select.
      *
      * @param string ...$columns Column names.
