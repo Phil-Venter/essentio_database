@@ -417,9 +417,7 @@ class Query
         }
 
         if (!empty($this->unions)) {
-            foreach ($this->unions as $union) {
-                $sql .= $union;
-            }
+            $sql .= " " . implode(" ", $this->unions);
         }
 
         return $sql;
